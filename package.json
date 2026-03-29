@@ -1,0 +1,1 @@
+{"name":"suwappu-yield-farmer","version":"1.0.0","type":"module","scripts":{"start":"npx tsx farmer.ts"},"dependencies":{"@suwappu/sdk":"^0.4.0","tsx":"^4.0.0"},"license":"MIT"}
