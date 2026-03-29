@@ -1,23 +1,33 @@
 #!/usr/bin/env python3
 """Suwappu Yield Farmer — find best Morpho lending opportunities."""
-import asyncio, os
+import argparse, asyncio, json, os, sys
 from suwappu import create_client
 
-async def main():
-    c = create_client(api_key=os.environ.get("SUWAPPU_API_KEY", ""))
-    print("Morpho lending markets on Base:\n")
-    markets = await c.lend.markets(chain_id=8453)
-    s = sorted(markets, key=lambda m: m.supply_apy, reverse=True)
+def require_env(n):
+    v = os.environ.get(n)
+    if not v: print(f"Error: {n} not set", file=sys.stderr); sys.exit(1)
+    return v
+
+async def cmd_markets(args):
+    c = create_client(api_key=require_env("SUWAPPU_API_KEY"))
+    markets = await c.lend.markets(chain_id=args.chain)
+    key = {"apy": "supply_apy", "utilization": "utilization", "supply": "total_supply"}.get(args.sort, "supply_apy")
+    s = sorted(markets, key=lambda m: getattr(m, key), reverse=True)[:args.top]
+    if args.json: print(json.dumps([m.model_dump() for m in s], indent=2)); await c.close(); return
+    print(f"Morpho Lending Markets (Chain {args.chain}) — sorted by {args.sort}\n")
     print("  Market                          Supply APY   Borrow APY   Utilization")
-    print("  " + "─" * 73)
-    for m in s[:10]:
+    print("  " + "─" * 70)
+    for m in s:
         pair = f"{m.loan_token}/{m.collateral_token}".ljust(30)
-        print(f"  {pair}   {m.supply_apy:.2f}%".ljust(50) + f"  {m.borrow_apy:.2f}%".ljust(13) + f"  {m.utilization:.1f}%")
-    if s:
-        b = s[0]
-        print(f"\nBest: {b.loan_token}/{b.collateral_token} — {b.supply_apy:.2f}% APY | ${b.total_supply/1e6:.1f}M supply")
-        d = await c.lend.market(b.id)
-        print(f"  Oracle: {d.oracle} | IRM: {d.irm}")
+        print(f"  {pair}   {m.supply_apy:.2f}%".ljust(48) + f"{m.borrow_apy:.2f}%".ljust(13) + f"{m.utilization:.1f}%")
     await c.close()
 
-asyncio.run(main())
+def main():
+    p = argparse.ArgumentParser(description="Suwappu Yield Farmer")
+    sub = p.add_subparsers(dest="command", required=True)
+    m = sub.add_parser("markets"); m.add_argument("--chain", type=int, default=8453); m.add_argument("--top", type=int, default=10); m.add_argument("--sort", choices=["apy","utilization","supply"], default="apy"); m.add_argument("--json", action="store_true")
+    d = sub.add_parser("detail"); d.add_argument("--id", required=True); d.add_argument("--json", action="store_true")
+    args = p.parse_args()
+    if args.command == "markets": asyncio.run(cmd_markets(args))
+
+if __name__ == "__main__": main()
