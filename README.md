@@ -46,6 +46,43 @@ python farmer.py markets --sort apy --top 5
 | `--sort` | `apy` | Sort by: apy, utilization, supply |
 | `--json` | off | JSON output |
 
+## Example Output
+
+```
+$ bun run src/cli.ts markets --top 5
+
+Morpho Lending Markets (Chain 8453) — sorted by apy
+
+  Market                          Supply APY   Borrow APY   Utilization   TVL
+  ────────────────────────────────────────────────────────────────────────────────
+  USDC/cbBTC                      12.50%       15.00%       95.0%         $2.5M
+  USDC/WETH                       8.20%        11.30%       88.5%         $5.1M
+  USDC/wstETH                     5.20%        7.10%        80.0%         $1.0M
+  DAI/WETH                        3.10%        5.00%        60.0%         $2.0M
+  USDC/USDT                       2.80%        3.50%        45.0%         $8.3M
+```
+
+```
+$ bun run src/cli.ts detail --id mk_abc123
+
+USDC/cbBTC Market
+
+  Supply APY:    12.50%
+  Borrow APY:    15.00%
+  Utilization:   95.0%
+  LLTV:          86%
+  Total Supply:  $2.5M
+  Oracle:        Chainlink USDC/BTC
+  IRM:           AdaptiveCurve
+  Created:       2025-08-15
+```
+
+## Development
+
+```bash
+bun test && bun run check
+```
+
 ## Links
 
 - [Suwappu Docs](https://docs.suwappu.bot)
