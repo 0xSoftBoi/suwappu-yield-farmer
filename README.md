@@ -1,91 +1,109 @@
-# suwappu-yield-farmer
+# Suwappu Lending Market Explorer
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+A read-only Morpho lending-market example for builders using [Suwappu](https://suwappu.bot).
 
-Analyze DeFi lending yields on Morpho using [Suwappu](https://suwappu.bot) DEX — find the best APY opportunities.
+The repository is named `suwappu-yield-farmer` for compatibility, but it does not deposit, withdraw, borrow, repay, or move funds. It discovers markets, ranks their reported metrics, and reads market details.
 
-> **Warning**: DeFi lending involves smart contract risk. Do your own research before depositing.
+> APY is variable and DeFi lending carries smart-contract, oracle, liquidity, and collateral risk. Market data is not a guaranteed return.
 
-## Install
+## Builder surface
+
+| CLI command | TypeScript SDK | Hosted MCP tool | Side effect |
+|---|---|---|---|
+| `markets` | `client.lend.markets(chainId)` | `lend_markets` | read-only |
+| `detail` | `client.lend.market(id)` | `lend_market` | read-only |
+
+Hosted MCP endpoint: `https://api.suwappu.bot/mcp`.
+
+This makes the repository a useful starting point for research agents, dashboards, ranking jobs, or alerting systems without giving those components a transaction capability.
+
+## TypeScript quick start
 
 ```bash
+git clone https://github.com/0xSoftBoi/suwappu-yield-farmer.git
+cd suwappu-yield-farmer
 bun install
-```
 
-## Usage
-
-```bash
 export SUWAPPU_API_KEY=suwappu_sk_...
 
-# List markets sorted by APY
-bun run src/cli.ts markets
-bun run src/cli.ts markets --top 5 --sort utilization --json
+# Base markets sorted by supply APY
+bun src/cli.ts markets --chain 8453 --top 10 --sort apy
 
-# Analyze specific market
-bun run src/cli.ts detail --id <market-id>
-
-# Python
-python farmer.py markets --sort apy --top 5
+# Read one market
+bun src/cli.ts detail --id <market-id>
 ```
 
-## Commands
+The TypeScript example uses the actually published `@suwappu/sdk@0.4.0` lending read methods.
 
-| Command | Description |
-|---------|-------------|
-| `markets` | List lending markets with APY, utilization, TVL |
-| `detail` | Deep dive into oracle, IRM, and market parameters |
+## Python quick start
 
-## Options (markets)
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--chain` | `8453` | Chain ID (Base) |
-| `--top` | `10` | Number of markets |
-| `--sort` | `apy` | Sort by: apy, utilization, supply |
-| `--json` | off | JSON output |
-
-## Example Output
-
-```
-$ bun run src/cli.ts markets --top 5
-
-Morpho Lending Markets (Chain 8453) — sorted by apy
-
-  Market                          Supply APY   Borrow APY   Utilization   TVL
-  ────────────────────────────────────────────────────────────────────────────────
-  USDC/cbBTC                      12.50%       15.00%       95.0%         $2.5M
-  USDC/WETH                       8.20%        11.30%       88.5%         $5.1M
-  USDC/wstETH                     5.20%        7.10%        80.0%         $1.0M
-  DAI/WETH                        3.10%        5.00%        60.0%         $2.0M
-  USDC/USDT                       2.80%        3.50%        45.0%         $8.3M
-```
-
-```
-$ bun run src/cli.ts detail --id mk_abc123
-
-USDC/cbBTC Market
-
-  Supply APY:    12.50%
-  Borrow APY:    15.00%
-  Utilization:   95.0%
-  LLTV:          86%
-  Total Supply:  $2.5M
-  Oracle:        Chainlink USDC/BTC
-  IRM:           AdaptiveCurve
-  Created:       2025-08-15
-```
-
-## Development
+The Suwappu Python SDK is source-only today and is not published on PyPI. This repository pins the current SDK source in `requirements.txt`:
 
 ```bash
-bun test && bun run check
+python -m pip install -r requirements.txt
+export SUWAPPU_API_KEY=suwappu_sk_...
+
+python farmer.py markets --chain 8453 --top 5 --sort utilization
+python farmer.py detail --id <market-id>
 ```
 
-## Links
+The old Python CLI advertised `detail` but never dispatched it; both commands are now implemented.
 
-- [Suwappu Docs](https://docs.suwappu.bot)
+## Markets
+
+```bash
+bun src/cli.ts markets --chain 8453 --sort apy
+bun src/cli.ts markets --chain 8453 --sort utilization
+bun src/cli.ts markets --chain 8453 --sort supply --json
+```
+
+Supported sort keys:
+
+- `apy` → `supplyApy`
+- `utilization` → `utilization`
+- `supply` → `totalSupply`
+
+`--chain` and `--top` must be positive integers. Unknown sort keys are rejected instead of silently falling back to a different metric.
+
+The SDK calls `totalSupply` a numeric market metric but does not define that field as USD-denominated. This example therefore does not label it “TVL” or prefix it with `$`. If your application needs dollar TVL, use a field whose currency units are explicit or perform an explicit, documented valuation step.
+
+## Detail
+
+```bash
+bun src/cli.ts detail --id <market-id>
+bun src/cli.ts detail --id <market-id> --json
+```
+
+Detail adds fields such as LLTV, oracle, interest-rate model, and creation time. Reading it still does not create a lending position.
+
+## Current SDK status
+
+The npm SDK is currently 0.4.0; the Suwappu repository contains newer 0.6 TypeScript source and a source-only Python SDK. This README distinguishes published packages from repository source so builders can reproduce the example today.
+
+The current Suwappu lending client surface represented here is intentionally read-only. If supply/borrow execution is added later, expose it as a separate destructive capability with its own authorization and policy checks rather than changing the semantics of `markets` or `detail`.
+
+## Environment
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `SUWAPPU_API_KEY` | Yes | Suwappu agent authentication |
+
+## Develop
+
+```bash
+bun run check
+bun test
+python -m py_compile farmer.py
+```
+
+The TypeScript tests call the same sort/validation helpers used by the CLI. CI also installs and imports the pinned Python SDK before compiling the Python example.
+
+## Build further
+
+- [Suwappu docs](https://docs.suwappu.bot)
+- [TypeScript SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk)
+- [Python SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk-python)
+- [Agent/MCP guide](https://github.com/0xSoftBoi/suwappubot/blob/main/docs/agent-clients.md)
 
 ## License
 

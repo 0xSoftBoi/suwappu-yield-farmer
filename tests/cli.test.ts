@@ -1,81 +1,58 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+import {
+  parseSortField,
+  positiveInteger,
+  sortMarkets,
+  type LendingSummary,
+} from "../src/market.js";
 
-interface Market {
+interface Market extends LendingSummary {
   loanToken: string;
-  collateralToken: string;
-  supplyApy: number;
-  borrowApy: number;
-  utilization: number;
-  totalSupply: number;
 }
 
 const sampleMarkets: Market[] = [
-  { loanToken: "USDC", collateralToken: "ETH", supplyApy: 5.2, borrowApy: 7.1, utilization: 80, totalSupply: 1_000_000 },
-  { loanToken: "USDC", collateralToken: "WBTC", supplyApy: 12.5, borrowApy: 15.0, utilization: 95, totalSupply: 500_000 },
-  { loanToken: "DAI", collateralToken: "ETH", supplyApy: 3.1, borrowApy: 5.0, utilization: 60, totalSupply: 2_000_000 },
+  { loanToken: "USDC", supplyApy: 5.2, utilization: 80, totalSupply: 1_000_000 },
+  { loanToken: "WBTC", supplyApy: 12.5, utilization: 95, totalSupply: 500_000 },
+  { loanToken: "DAI", supplyApy: 3.1, utilization: 60, totalSupply: 2_000_000 },
 ];
 
-describe("sorting", () => {
-  it("should sort by APY descending", () => {
-    const sorted = [...sampleMarkets].sort((a, b) => b.supplyApy - a.supplyApy);
-    expect(sorted[0].supplyApy).toBe(12.5);
-    expect(sorted[2].supplyApy).toBe(3.1);
+describe("lending market sorting", () => {
+  it("sorts by supply APY descending", () => {
+    expect(sortMarkets(sampleMarkets, "apy", 3).map((market) => market.loanToken)).toEqual([
+      "WBTC",
+      "USDC",
+      "DAI",
+    ]);
   });
 
-  it("should sort by utilization descending", () => {
-    const sorted = [...sampleMarkets].sort((a, b) => b.utilization - a.utilization);
-    expect(sorted[0].utilization).toBe(95);
+  it("sorts by utilization descending", () => {
+    expect(sortMarkets(sampleMarkets, "utilization", 2).map((market) => market.loanToken)).toEqual([
+      "WBTC",
+      "USDC",
+    ]);
   });
 
-  it("should sort by total supply descending", () => {
-    const sorted = [...sampleMarkets].sort((a, b) => b.totalSupply - a.totalSupply);
-    expect(sorted[0].loanToken).toBe("DAI");
-  });
-});
-
-describe("APY formatting", () => {
-  it("should format to 2 decimal places", () => {
-    expect((5.2).toFixed(2)).toBe("5.20");
-    expect((12.5).toFixed(2)).toBe("12.50");
-  });
-});
-
-describe("TVL formatting", () => {
-  it("should format millions", () => {
-    const tvl = 2_000_000;
-    expect(`$${(tvl / 1e6).toFixed(1)}M`).toBe("$2.0M");
+  it("sorts by total supply without pretending the unit is USD", () => {
+    expect(sortMarkets(sampleMarkets, "supply", 3)[0].loanToken).toBe("DAI");
   });
 
-  it("should format thousands", () => {
-    const tvl = 500_000;
-    expect(`$${(tvl / 1e3).toFixed(0)}K`).toBe("$500K");
+  it("does not mutate API response order", () => {
+    sortMarkets(sampleMarkets, "apy", 2);
+    expect(sampleMarkets.map((market) => market.loanToken)).toEqual(["USDC", "WBTC", "DAI"]);
   });
 });
 
-describe("market pair formatting", () => {
-  it("should join loan/collateral with slash", () => {
-    const pair = `${sampleMarkets[0].loanToken}/${sampleMarkets[0].collateralToken}`;
-    expect(pair).toBe("USDC/ETH");
-  });
-});
-
-describe("--top flag", () => {
-  it("should limit to N results", () => {
-    const top = 2;
-    const result = sampleMarkets.slice(0, top);
-    expect(result.length).toBe(2);
+describe("CLI validation", () => {
+  it("accepts only documented sort fields", () => {
+    expect(parseSortField("apy")).toBe("apy");
+    expect(parseSortField("utilization")).toBe("utilization");
+    expect(parseSortField("supply")).toBe("supply");
+    expect(() => parseSortField("tvl")).toThrow("--sort");
   });
 
-  it("should return all if top > length", () => {
-    const result = sampleMarkets.slice(0, 100);
-    expect(result.length).toBe(3);
-  });
-});
-
-describe("subcommands", () => {
-  const valid = ["markets", "detail"];
-  it("should accept markets and detail", () => {
-    expect(valid.includes("markets")).toBe(true);
-    expect(valid.includes("detail")).toBe(true);
+  it("requires positive integer chain/top values", () => {
+    expect(positiveInteger(8453, "--chain")).toBe(8453);
+    expect(() => positiveInteger(0, "--top")).toThrow("--top");
+    expect(() => positiveInteger(1.5, "--top")).toThrow("--top");
   });
 });
