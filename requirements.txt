@@ -1,2 +1,2 @@
 # The Python SDK is source-only today; pin it for reproducible installs.
-suwappu @ git+https://github.com/0xSoftBoi/suwappubot.git@e5281bafe6969ddbe2ca9e80b4ff651d0b2df2a5#subdirectory=packages/sdk-python
+suwappu @ git+https://github.com/0xSoftBoi/suwappubot.git@e692a93155d63dc2b348be13ce122fd05c672b2d#subdirectory=packages/sdk-python
