@@ -1,9 +1,11 @@
 # Security Policy
 
 This repository is a satellite / example application built on the
-[Suwappu API](https://github.com/0xSoftBoi/suwappubot). Some examples can
-initiate real financial transactions when execution is enabled. Treat API keys,
-wallet credentials, and configuration as sensitive.
+[Suwappu API](https://github.com/0xSoftBoi/suwappubot). This repository is
+read-only: its remote calls list/read lending markets, while snapshot comparison
+reads local JSON files. It does not accept wallet private keys or create lending
+transactions. Treat Suwappu API keys, local snapshots, dependencies, and CI
+configuration as sensitive.
 
 ## Reporting a vulnerability
 
@@ -21,12 +23,16 @@ contracts, custody/key-management layer, or shared SDK should be reported
 upstream through the
 [core security policy](https://github.com/0xSoftBoi/suwappubot/security/policy).
 
-## Custody and execution model
+## Capability boundary
 
-Suwappu supports both self-custody and custodial product flows. This satellite
-repository does not make a custody guarantee: behavior depends on the API mode
-and configuration in use. Prefer dry-run or read-only modes where available,
-use test wallets before enabling execution, and never commit credentials.
+The `markets`, `detail`, and `snapshot` commands perform remote reads. The
+`changes` command reads two user-selected local files and performs deterministic
+comparison only. None of these commands should silently acquire transaction,
+wallet-signing, or token-approval behavior in a future update.
+
+If an application adds Morpho/Suwappu execution, keep that capability behind a
+separate command and authorization boundary, validate chain and market identity,
+and follow the upstream core security policy. Never commit credentials.
 
 ## Our commitment
 
