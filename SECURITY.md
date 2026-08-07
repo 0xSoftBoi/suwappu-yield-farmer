@@ -7,6 +7,10 @@ reads local JSON files. It does not accept wallet private keys or create lending
 transactions. Treat Suwappu API keys, local snapshots, dependencies, and CI
 configuration as sensitive.
 
+An API key is optional for this repository's public lending REST reads. If you
+set `SUWAPPU_API_KEY` for other authenticated Suwappu surfaces or hosted MCP,
+keep it in your environment or secret manager and never commit it.
+
 ## Reporting a vulnerability
 
 **Do not open a public issue for security reports.** Instead:

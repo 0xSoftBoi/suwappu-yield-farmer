@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { createClient } from "@suwappu/sdk";
 import { readFile } from "node:fs/promises";
+import { fetchLendingMarketDetail } from "./lending.js";
 import {
   parseSortField,
   positiveInteger,
@@ -14,14 +15,6 @@ import {
   parseSnapshot,
   type SnapshotChanges,
 } from "./monitor.js";
-
-function requireApiKey(): string {
-  const value = process.env.SUWAPPU_API_KEY;
-  if (!value) {
-    throw new Error("SUWAPPU_API_KEY is not set");
-  }
-  return value;
-}
 
 async function readSnapshot(path: string) {
   const contents = await readFile(path, "utf8");
@@ -65,7 +58,7 @@ program
     const chain = positiveInteger(opts.chain, "--chain");
     const top = positiveInteger(opts.top, "--top");
     const sort = parseSortField(opts.sort);
-    const client = createClient({ apiKey: requireApiKey() });
+    const client = createClient();
     const markets = await client.lend.markets(chain);
     const sorted = sortMarkets(markets, sort, top);
 
@@ -94,10 +87,11 @@ program
   .command("detail")
   .description("Read details for one lending market")
   .requiredOption("--id <id>", "market ID")
+  .option("--chain <id>", "chain ID", Number.parseInt, 8453)
   .option("--json", "JSON output")
   .action(async (opts) => {
-    const client = createClient({ apiKey: requireApiKey() });
-    const detail = await client.lend.market(opts.id);
+    const chain = positiveInteger(opts.chain, "--chain");
+    const detail = await fetchLendingMarketDetail(opts.id, chain);
 
     if (opts.json) {
       console.log(JSON.stringify(detail, null, 2));
@@ -122,7 +116,7 @@ program
   .option("--chain <id>", "chain ID", Number.parseInt, 8453)
   .action(async (opts) => {
     const chain = positiveInteger(opts.chain, "--chain");
-    const client = createClient({ apiKey: requireApiKey() });
+    const client = createClient();
     const markets = await client.lend.markets(chain);
     console.log(JSON.stringify(createSnapshot(markets, chain), null, 2));
   });
