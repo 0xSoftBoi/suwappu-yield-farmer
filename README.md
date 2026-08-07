@@ -11,7 +11,7 @@ The repository is named `suwappu-yield-farmer` for compatibility, but it does no
 | CLI command | TypeScript SDK | Hosted MCP tool | Side effect |
 |---|---|---|---|
 | `markets` | `client.lend.markets(chainId)` | `lend_markets` | read-only |
-| `detail` | `client.lend.market(id)` | `lend_market` | read-only |
+| `detail` | chain-scoped public REST (see SDK note below) | `lend_market` | read-only |
 | `snapshot` | `client.lend.markets(chainId)` + local normalization | `lend_markets` + local normalization | read-only |
 | `changes` | local snapshot comparison | local snapshot comparison | local read only |
 
@@ -26,19 +26,17 @@ git clone https://github.com/0xSoftBoi/suwappu-yield-farmer.git
 cd suwappu-yield-farmer
 bun install
 
-export SUWAPPU_API_KEY=suwappu_sk_...
-
 # Base markets sorted by supply APY
 bun src/cli.ts markets --chain 8453 --top 10 --sort apy
 
-# Read one market
-bun src/cli.ts detail --id <market-id>
+# Read one market, keeping its chain explicit
+bun src/cli.ts detail --id <market-id> --chain 8453
 
 # Capture a versioned monitoring snapshot
 bun src/cli.ts snapshot --chain 8453 > before.json
 ```
 
-The TypeScript example uses the actually published `@suwappu/sdk@0.4.0` lending read methods.
+The TypeScript list/snapshot commands use the actually published `@suwappu/sdk@0.4.0` lending read methods. That package predates chain-scoped market detail, so `detail` calls Suwappu's public REST endpoint directly and always sends `chainId`; do not detach a Morpho market ID from its chain.
 
 ## Python quick start
 
@@ -46,10 +44,9 @@ The Suwappu Python SDK is source-only today and is not published on PyPI. This r
 
 ```bash
 python -m pip install -r requirements.txt
-export SUWAPPU_API_KEY=suwappu_sk_...
 
 python farmer.py markets --chain 8453 --top 5 --sort utilization
-python farmer.py detail --id <market-id>
+python farmer.py detail --id <market-id> --chain 8453
 python farmer.py snapshot --chain 8453 > before.json
 ```
 
@@ -76,8 +73,8 @@ The SDK calls `totalSupply` a numeric market metric but does not define that fie
 ## Detail
 
 ```bash
-bun src/cli.ts detail --id <market-id>
-bun src/cli.ts detail --id <market-id> --json
+bun src/cli.ts detail --id <market-id> --chain 8453
+bun src/cli.ts detail --id <market-id> --chain 1 --json
 ```
 
 Detail adds fields such as LLTV, oracle, interest-rate model, and creation time. Reading it still does not create a lending position.
@@ -118,7 +115,9 @@ The current Suwappu lending client surface represented here is intentionally rea
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `SUWAPPU_API_KEY` | Yes | Suwappu agent authentication |
+| `SUWAPPU_API_KEY` | No | Optional Bearer token for authenticated Suwappu surfaces; these public lending REST reads do not require it |
+
+The CLI works without credentials because `/v1/agent/lend/markets` and `/v1/agent/lend/market/:id` are public read-only REST routes. If you reproduce the same workflow through Suwappu's hosted MCP tools, configure `SUWAPPU_API_KEY`: hosted `lend_markets` / `lend_market` are authenticated even though the REST reads are public.
 
 ## Develop
 
@@ -134,6 +133,7 @@ The TypeScript tests call the same sort/validation and monitoring helpers used b
 ## Build further
 
 - [Product/alert architecture and unit economics](BUILDING_A_PRODUCT.md)
+- [Build a Lending Monitor guide](https://docs.suwappu.bot/guides/lending-monitor)
 - [Suwappu docs](https://docs.suwappu.bot)
 - [TypeScript SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk)
 - [Python SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk-python)

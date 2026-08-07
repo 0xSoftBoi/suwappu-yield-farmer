@@ -5,19 +5,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 from pathlib import Path
 import sys
 
 from suwappu import create_client
 from lending_monitor import compare_snapshots, create_snapshot
-
-
-def require_api_key() -> str:
-    value = os.environ.get("SUWAPPU_API_KEY")
-    if not value:
-        raise RuntimeError("SUWAPPU_API_KEY is not set")
-    return value
 
 
 async def cmd_markets(args: argparse.Namespace) -> None:
@@ -26,7 +18,7 @@ async def cmd_markets(args: argparse.Namespace) -> None:
     if args.top <= 0:
         raise ValueError("--top must be a positive integer")
 
-    client = create_client(api_key=require_api_key())
+    client = create_client()
     try:
         markets = await client.lend.markets(chain_id=args.chain)
         key = {
@@ -71,9 +63,11 @@ async def cmd_markets(args: argparse.Namespace) -> None:
 
 
 async def cmd_detail(args: argparse.Namespace) -> None:
-    client = create_client(api_key=require_api_key())
+    if args.chain <= 0:
+        raise ValueError("--chain must be a positive integer")
+    client = create_client()
     try:
-        detail = await client.lend.market(args.id)
+        detail = await client.lend.market(args.id, chain_id=args.chain)
         if args.json:
             print(json.dumps(detail.model_dump(), indent=2))
             return
@@ -107,7 +101,7 @@ def snapshot_market(market: object) -> dict[str, object]:
 async def cmd_snapshot(args: argparse.Namespace) -> None:
     if args.chain <= 0:
         raise ValueError("--chain must be a positive integer")
-    client = create_client(api_key=require_api_key())
+    client = create_client()
     try:
         markets = await client.lend.markets(chain_id=args.chain)
         snapshot = create_snapshot(
@@ -175,6 +169,7 @@ def main() -> None:
 
     detail = sub.add_parser("detail", help="Read one lending market")
     detail.add_argument("--id", required=True)
+    detail.add_argument("--chain", type=int, default=8453)
     detail.add_argument("--json", action="store_true")
 
     snapshot = sub.add_parser(
