@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
-import { createClient } from "@suwappu/sdk";
 import { readFile } from "node:fs/promises";
-import { fetchLendingMarketDetail } from "./lending.js";
+import { fetchLendingMarketDetail, fetchLendingMarkets } from "./lending.js";
 import {
   parseSortField,
   positiveInteger,
@@ -62,8 +61,7 @@ program
     const chain = positiveInteger(opts.chain, "--chain");
     const top = positiveInteger(opts.top, "--top");
     const sort = parseSortField(opts.sort);
-    const client = createClient();
-    const markets = await client.lend.markets(chain);
+    const markets = await fetchLendingMarkets(chain);
     const sorted = sortMarkets(markets, sort, top);
 
     if (opts.json) {
@@ -120,8 +118,7 @@ program
   .option("--chain <id>", "chain ID", Number.parseInt, 8453)
   .action(async (opts) => {
     const chain = positiveInteger(opts.chain, "--chain");
-    const client = createClient();
-    const markets = await client.lend.markets(chain);
+    const markets = await fetchLendingMarkets(chain);
     console.log(JSON.stringify(createSnapshot(markets, chain), null, 2));
   });
 
