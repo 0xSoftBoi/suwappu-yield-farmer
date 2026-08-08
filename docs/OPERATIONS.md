@@ -20,7 +20,7 @@ A paid alert service should persist hysteresis/dedupe state by customer + chain 
 
 ## Network and cost control
 
-Direct detail reads use `SUWAPPU_OPERATION_TIMEOUT_MS` (25s default, maximum 30s) and status-only HTTP errors. If `SUWAPPU_API_URL` is overridden, point it only at a trusted environment.
+TypeScript list and detail reads use `SUWAPPU_OPERATION_TIMEOUT_MS` (25s default, maximum 30s) and status-only HTTP errors. The monitor intentionally uses the public REST contract here because the published TypeScript SDK transport does not yet expose an equivalent deadline/error-body boundary. If `SUWAPPU_API_URL` is overridden, point it only at a trusted environment.
 
 Do not poll each customer independently when watchlists overlap. Share market snapshots by chain/cadence, then evaluate customer policy locally. Track actual Suwappu/API, storage, notification, compute, and support cost separately from customer portfolio yield.
 
