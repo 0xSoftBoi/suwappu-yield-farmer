@@ -14,7 +14,6 @@
     "verify": "bun run check && bun test && bun run build && npm audit --audit-level=high"
   },
   "dependencies": {
-    "@suwappu/sdk": "0.4.0",
     "commander": "^12.0.0"
   },
   "devDependencies": {
