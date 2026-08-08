@@ -10,9 +10,9 @@ The repository is named `suwappu-yield-farmer` for compatibility, but it does no
 
 | CLI command | TypeScript SDK | Hosted MCP tool | Side effect |
 |---|---|---|---|
-| `markets` | `client.lend.markets(chainId)` | `lend_markets` | read-only |
-| `detail` | chain-scoped public REST (see SDK note below) | `lend_market` | read-only |
-| `snapshot` | `client.lend.markets(chainId)` + local normalization | `lend_markets` + local normalization | read-only |
+| `markets` | bounded public REST | `lend_markets` | read-only |
+| `detail` | bounded, chain-scoped public REST | `lend_market` | read-only |
+| `snapshot` | bounded public REST + local normalization | `lend_markets` + local normalization | read-only |
 | `changes` | local snapshot comparison | local snapshot comparison | local read only |
 
 Hosted MCP endpoint: `https://api.suwappu.bot/mcp`.
@@ -36,7 +36,7 @@ bun src/cli.ts detail --id <market-id> --chain 8453
 bun src/cli.ts snapshot --chain 8453 > before.json
 ```
 
-The TypeScript list/snapshot commands use the actually published `@suwappu/sdk@0.4.0` lending read methods. That package predates chain-scoped market detail, so `detail` calls Suwappu's public REST endpoint directly and always sends `chainId`; do not detach a Morpho market ID from its chain.
+The published `@suwappu/sdk@0.4.0` exposes the same lending reads, but its transport does not yet expose this monitor's deadline/status-only error boundary and its detail helper predates chain-scoped reads. The TypeScript CLI therefore uses Suwappu's public REST contract directly for list and detail, always sends `chainId`, and caps each request with `SUWAPPU_OPERATION_TIMEOUT_MS`. Do not detach a Morpho market ID from its chain.
 
 ## Python quick start
 
