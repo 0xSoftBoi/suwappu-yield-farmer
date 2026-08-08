@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
-import { createClient } from "@suwappu/sdk";
 import { readFile } from "node:fs/promises";
-import { fetchLendingMarketDetail } from "./lending.js";
+import { fetchLendingMarketDetail, fetchLendingMarkets } from "./lending.js";
 import {
   parseSortField,
   positiveInteger,
@@ -45,7 +44,7 @@ function printChanges(result: SnapshotChanges): void {
 const program = new Command()
   .name("suwappu-yield-farmer")
   .description("Read-only Suwappu/Morpho lending market monitor")
-  .version("1.1.0");
+  .version("2.0.0");
 
 program
   .command("markets")
@@ -54,12 +53,15 @@ program
   .option("--top <n>", "show top N", Number.parseInt, 10)
   .option("--sort <field>", "sort by: apy, utilization, supply", "apy")
   .option("--json", "JSON output")
+  .option(
+    "--fail-on-change",
+    "exit 2 when a configured threshold is crossed; useful for schedulers",
+  )
   .action(async (opts) => {
     const chain = positiveInteger(opts.chain, "--chain");
     const top = positiveInteger(opts.top, "--top");
     const sort = parseSortField(opts.sort);
-    const client = createClient();
-    const markets = await client.lend.markets(chain);
+    const markets = await fetchLendingMarkets(chain);
     const sorted = sortMarkets(markets, sort, top);
 
     if (opts.json) {
@@ -116,8 +118,7 @@ program
   .option("--chain <id>", "chain ID", Number.parseInt, 8453)
   .action(async (opts) => {
     const chain = positiveInteger(opts.chain, "--chain");
-    const client = createClient();
-    const markets = await client.lend.markets(chain);
+    const markets = await fetchLendingMarkets(chain);
     console.log(JSON.stringify(createSnapshot(markets, chain), null, 2));
   });
 
@@ -153,9 +154,10 @@ program
 
     if (opts.json) {
       console.log(JSON.stringify(result, null, 2));
-      return;
+    } else {
+      printChanges(result);
     }
-    printChanges(result);
+    if (opts.failOnChange && result.changes.length > 0) process.exitCode = 2;
   });
 
 program.parseAsync().catch((error: unknown) => {

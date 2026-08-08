@@ -10,9 +10,9 @@ The repository is named `suwappu-yield-farmer` for compatibility, but it does no
 
 | CLI command | TypeScript SDK | Hosted MCP tool | Side effect |
 |---|---|---|---|
-| `markets` | `client.lend.markets(chainId)` | `lend_markets` | read-only |
-| `detail` | chain-scoped public REST (see SDK note below) | `lend_market` | read-only |
-| `snapshot` | `client.lend.markets(chainId)` + local normalization | `lend_markets` + local normalization | read-only |
+| `markets` | bounded public REST | `lend_markets` | read-only |
+| `detail` | bounded, chain-scoped public REST | `lend_market` | read-only |
+| `snapshot` | bounded public REST + local normalization | `lend_markets` + local normalization | read-only |
 | `changes` | local snapshot comparison | local snapshot comparison | local read only |
 
 Hosted MCP endpoint: `https://api.suwappu.bot/mcp`.
@@ -24,7 +24,7 @@ This makes the repository a useful starting point for research agents, dashboard
 ```bash
 git clone https://github.com/0xSoftBoi/suwappu-yield-farmer.git
 cd suwappu-yield-farmer
-bun install
+npm ci
 
 # Base markets sorted by supply APY
 bun src/cli.ts markets --chain 8453 --top 10 --sort apy
@@ -36,7 +36,7 @@ bun src/cli.ts detail --id <market-id> --chain 8453
 bun src/cli.ts snapshot --chain 8453 > before.json
 ```
 
-The TypeScript list/snapshot commands use the actually published `@suwappu/sdk@0.4.0` lending read methods. That package predates chain-scoped market detail, so `detail` calls Suwappu's public REST endpoint directly and always sends `chainId`; do not detach a Morpho market ID from its chain.
+The published `@suwappu/sdk@0.4.0` exposes the same lending reads, but its transport does not yet expose this monitor's deadline/status-only error boundary and its detail helper predates chain-scoped reads. The TypeScript CLI therefore uses Suwappu's public REST contract directly for list and detail, always sends `chainId`, and caps each request with `SUWAPPU_OPERATION_TIMEOUT_MS`. Do not detach a Morpho market ID from its chain.
 
 ## Python quick start
 
@@ -92,10 +92,11 @@ bun src/cli.ts changes \
   --before before.json \
   --after after.json \
   --min-apy-delta 0.5 \
-  --min-utilization-delta 5
+  --min-utilization-delta 5 \
+  --fail-on-change
 ```
 
-The Python CLI accepts the same files and thresholds. APY and utilization deltas are expressed in **percentage points**. New/removed markets are always surfaced; unchanged markets below both thresholds are omitted.
+The Python CLI accepts the same files and thresholds. APY and utilization deltas are expressed in **percentage points**. New/removed markets are always surfaced; unchanged markets below both thresholds are omitted. The TypeScript `--fail-on-change` flag returns exit code `2` after emitting the evidence when at least one configured change exists, so a scheduler can distinguish “signal” from “process failure.”
 
 This is change detection, not a risk score or yield recommendation. A production alert product should add stored watchlists, shared polling, hysteresis, deduplication, notification retries, and an outage policy. The complete pattern is in [Build a Lending Monitor People Can Pay For](BUILDING_A_PRODUCT.md).
 
@@ -116,24 +117,26 @@ The current Suwappu lending client surface represented here is intentionally rea
 | Variable | Required | Purpose |
 |---|---|---|
 | `SUWAPPU_API_KEY` | No | Optional Bearer token for authenticated Suwappu surfaces; these public lending REST reads do not require it |
+| `SUWAPPU_API_URL` | No | Suwappu REST origin override; keep production pointed at a trusted origin |
+| `SUWAPPU_OPERATION_TIMEOUT_MS` | No | Per-request deadline, integer `100..30000` ms; default `25000` |
 
 The CLI works without credentials because `/v1/agent/lend/markets` and `/v1/agent/lend/market/:id` are public read-only REST routes. If you reproduce the same workflow through Suwappu's hosted MCP tools, configure `SUWAPPU_API_KEY`: hosted `lend_markets` / `lend_market` are authenticated even though the REST reads are public.
 
 ## Develop
 
 ```bash
-bun run check
-bun test
+npm ci
+bun run verify
 python -m py_compile farmer.py
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The TypeScript tests call the same sort/validation and monitoring helpers used by the CLI. CI also installs/imports the pinned Python SDK, compiles both Python modules, and exercises the Python snapshot/change contract.
+The TypeScript tests call the same sort/validation and monitoring helpers used by the CLI. CI also installs/imports the pinned Python SDK, compiles both Python modules, exercises the Python snapshot/change contract, builds a non-root container, and runs CodeQL. See [docs/OPERATIONS.md](docs/OPERATIONS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md).
 
 ## Build further
 
 - [Product/alert architecture and unit economics](BUILDING_A_PRODUCT.md)
-- [Build a Lending Monitor guide](https://docs.suwappu.bot/guides/lending-monitor)
+- [Lending markets guide](https://docs.suwappu.bot/guides/lending-markets)
 - [Suwappu docs](https://docs.suwappu.bot)
 - [TypeScript SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk)
 - [Python SDK source](https://github.com/0xSoftBoi/suwappubot/tree/main/packages/sdk-python)
