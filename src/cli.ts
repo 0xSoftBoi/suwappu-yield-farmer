@@ -45,7 +45,7 @@ function printChanges(result: SnapshotChanges): void {
 const program = new Command()
   .name("suwappu-yield-farmer")
   .description("Read-only Suwappu/Morpho lending market monitor")
-  .version("1.1.0");
+  .version("2.0.0");
 
 program
   .command("markets")
@@ -54,6 +54,10 @@ program
   .option("--top <n>", "show top N", Number.parseInt, 10)
   .option("--sort <field>", "sort by: apy, utilization, supply", "apy")
   .option("--json", "JSON output")
+  .option(
+    "--fail-on-change",
+    "exit 2 when a configured threshold is crossed; useful for schedulers",
+  )
   .action(async (opts) => {
     const chain = positiveInteger(opts.chain, "--chain");
     const top = positiveInteger(opts.top, "--top");
@@ -153,9 +157,10 @@ program
 
     if (opts.json) {
       console.log(JSON.stringify(result, null, 2));
-      return;
+    } else {
+      printChanges(result);
     }
-    printChanges(result);
+    if (opts.failOnChange && result.changes.length > 0) process.exitCode = 2;
   });
 
 program.parseAsync().catch((error: unknown) => {
